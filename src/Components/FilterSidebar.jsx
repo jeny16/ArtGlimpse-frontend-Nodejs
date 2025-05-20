@@ -143,7 +143,7 @@ const FilterSidebar = ({
       </Box>
 
       {/* Active Filter Chips */}
-      {totalActive > 0 && (
+      {/* {totalActive > 0 && (
         <Box>
           <Typography variant="body2" color="text.secondary">Applied Filters:</Typography>
           <Box sx={{ display:'flex', flexWrap:'wrap', mt:1 }}>
@@ -156,7 +156,7 @@ const FilterSidebar = ({
             ))}
           </Box>
         </Box>
-      )}
+      )} */}
 
       {/* Categories Accordion (from fetched data) */}
       <FilterAccordion expanded={expanded==='categories'} onChange={handleAccordionChange('categories')}>

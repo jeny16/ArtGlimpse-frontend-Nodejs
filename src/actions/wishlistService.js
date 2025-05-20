@@ -1,39 +1,38 @@
-import axios from './api'; // use the configured axios instance
-const API_URL = "http://localhost:3000/wishlist";
+import axios from './api';
+const API_URL = "http://localhost:3000/api/wishlist";
 
 const wishlistService = {
-    getWishlist: async (userId) => {
-        try {
-            const response = await axios.get(`${API_URL}/${userId}`);
-            console.log("Wishlist response:", response.data);
-            return response.data;
-        } catch (error) {
-            console.error("Error fetching wishlist", error);
-            throw error.response?.data || "Failed to fetch wishlist";
-        }
-    },
+  getWishlist: async (userId) => {
+    try {
+      const res = await axios.get(`${API_URL}/${userId}`);
+      return res.data.data;
+    } catch (error) {
+      const msg = error.response?.data?.message || error.message;
+      throw { message: msg, status: error.response?.status };
+    }
+  },
 
-    addToWishlist: async ({ userId, productId }) => {
-        try {
-            const response = await axios.post(API_URL, { userId, productId });
-            console.log("Add to wishlist response:", response.data);
-            return response.data;
-        } catch (error) {
-            console.error("Error adding to wishlist", error);
-            throw error.response?.data || "Failed to add to wishlist";
-        }
-    },
+  addToWishlist: async ({ userId, productId }) => {
+    try {
+      const response = await axios.post(API_URL, { userId, productId });
+      return response.data.data;
+    } catch (error) {
+      const msg = error.response?.data?.message || error.message;
+      throw { message: msg, status: error.response?.status };
+    }
+  },
 
-    removeFromWishlist: async ({ userId, productId }) => {
-        try {
-            const response = await axios.delete(`${API_URL}/${userId}/${productId}`);
-            console.log("Remove from wishlist response:", response.data);
-            return response.data;
-        } catch (error) {
-            console.error("Error removing from wishlist", error);
-            throw error.response?.data || "Failed to remove from wishlist";
-        }
-    },
+  removeFromWishlist: async ({ userId, productId }) => {
+    try {
+      const response = await axios.delete(API_URL, {
+        data: { userId, productId }
+      });
+      return response.data.data;
+    } catch (error) {
+      const msg = error.response?.data?.message || error.message;
+      throw { message: msg, status: error.response?.status };
+    }
+  },
 };
 
 export default wishlistService;

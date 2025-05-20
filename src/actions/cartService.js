@@ -1,5 +1,5 @@
 import axios from './api'; // use the configured axios instance
-const API_URL = 'http://localhost:3000/cart';
+// const API_URL = 'http://localhost:3000/cart';
 
 const cartService = {
     getCart: async (userId) => {

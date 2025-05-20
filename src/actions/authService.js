@@ -7,9 +7,7 @@ const authService = {
             const response = await axios.post(`${API_URL}/login`, { email, password });
             console.log("Login response:", response);
             if (response.data.token) {
-                // Store user data locally
                 localStorage.setItem('user', JSON.stringify(response.data));
-                // No need to manually set axios.defaults.headers since the interceptor handles it.
             }
             return response.data;
         } catch (error) {
@@ -32,7 +30,6 @@ const authService = {
 
     logout: () => {
         localStorage.removeItem('user');
-        // With the interceptor, no need to manually remove header; subsequent requests won't find the token.
     }
 };
 

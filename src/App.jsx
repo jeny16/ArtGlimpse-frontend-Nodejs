@@ -6,31 +6,25 @@ import { Box } from '@mui/material';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { useDispatch } from 'react-redux';
-import { logout } from './store/authSlice';
+import { logout, login } from './store/authSlice';
 import axios from 'axios';
 
 function App() {
   const dispatch = useDispatch();
 
   useEffect(() => {
-    const validateToken = async () => {
-      const storedUser = localStorage.getItem('user');
-      if (storedUser) {
-        const { token } = JSON.parse(storedUser);
-        try {
-          await axios.get('http://localhost:3000/api/auth/validate', {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-        } catch (error) {
-          dispatch(logout());
-          localStorage.removeItem('user');
-          console.error("Token validation failed, user has been logged out.", error);
-        }
-      }
-    };
+  const stored = localStorage.getItem('user');
+  if (!stored) return;
 
-    validateToken();
-  }, [dispatch]);
+  const userData = JSON.parse(stored);
+  dispatch(login(userData));     
+
+  axios.get('/auth/validate')   
+    .catch(() => {
+      dispatch(logout());
+      localStorage.removeItem('user');
+    });
+}, [dispatch]);
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>

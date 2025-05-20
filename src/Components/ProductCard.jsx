@@ -20,86 +20,58 @@ import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-toastify";
 import { addToWishlist, removeFromWishlist, fetchWishlist } from "../store/wishlistSlice";
 import { addToCart, fetchCart } from "../store/cartSlice";
-// Import the helper function to get a viewable image URL from Appwrite or a public URL.
 import { getImageUrl } from "../actions/getImage";
-
-// Module-level flags to ensure wishlist and cart are fetched only once
-let wishlistFetched = false;
-let cartFetched = false;
 
 const ProductCard = ({ product }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const location = useLocation();
   const auth = useSelector((state) => state.auth);
-  const wishlistState = useSelector((state) => state.wishlist.wishlist);
+  const wishlistProducts = useSelector((state) => state.wishlist.products);
   const cart = useSelector((state) => state.cart.cart);
 
   const [isHovered, setIsHovered] = useState(false);
   const [currentImage, setCurrentImage] = useState(0);
-  const [isFavorite, setIsFavorite] = useState(false);
 
-  // Use product.images if available; otherwise use a placeholder.
-  const images =
-    product.images && product.images.length > 0
-      ? product.images
-      : ["https://via.placeholder.com/150"];
+  const images = product.images?.length
+    ? product.images
+    : ["https://via.placeholder.com/150"];
   const isOutOfStock = product.stock <= 0;
-
-  // Calculate product id as a string.
   const prodId = (product.id || product._id)?.toString();
 
-  // Check if product is in cart (comparing as strings).
-  const inCart =
-    cart &&
-    cart.items &&
-    cart.items.find((item) => {
-      const idStr =
-        typeof item.productId === "string"
-          ? item.productId
-          : item.productId?.toString();
-      return idStr === prodId;
-    });
+  const inCart = cart?.items?.some((item) => {
+    const idStr = typeof item.productId === "string"
+      ? item.productId
+      : item.productId?.toString();
+    return idStr === prodId;
+  });
 
-  // Fetch wishlist if not loaded already.
+  // Fetch wishlist once
   useEffect(() => {
-    if (
-      auth.isLoggedIn &&
-      auth.userData?.userId &&
-      !wishlistState &&
-      !wishlistFetched
-    ) {
+    if (auth.isLoggedIn && auth.userData?.userId && wishlistProducts.length === 0) {
       dispatch(fetchWishlist(auth.userData.userId));
-      wishlistFetched = true;
     }
-  }, [auth, dispatch, wishlistState]);
+  }, [auth, dispatch, wishlistProducts.length]);
 
-  // Fetch cart if not loaded already.
+  // Fetch cart once
   useEffect(() => {
-    if (
-      auth.isLoggedIn &&
-      auth.userData?.userId &&
-      !cart &&
-      !cartFetched
-    ) {
+    if (auth.isLoggedIn && auth.userData?.userId && !(cart?.items?.length > 0)) {
       dispatch(fetchCart(auth.userData.userId));
-      cartFetched = true;
     }
-  }, [auth, dispatch, cart]);
+  }, [auth, dispatch, cart?.items?.length]);
 
-  // Update local favorite state when wishlist changes.
-  useEffect(() => {
-    if (wishlistState?.products) {
-      const exists = wishlistState.products.some(
-        (p) =>
-          (p.id || p._id)?.toString() === prodId ||
-          (p.productId?._id || p.productId)?.toString() === prodId
-      );
-      setIsFavorite(exists);
-    }
-  }, [wishlistState, prodId]);
+  // Determine favorite state from global wishlist
+  const isFavorite = useMemo(
+    () => wishlistProducts.some((p) => {
+      // extract product id from wishlist item shape
+      const wishProd = p.productId
+        ? (p.productId._id?.toString() || p.productId.toString())
+        : (p.id?.toString() || p._id?.toString());
+      return wishProd === prodId;
+    }),
+    [wishlistProducts, prodId]
+  );
 
   const handleMouseEnter = useCallback(() => setIsHovered(true), []);
   const handleMouseLeave = useCallback(() => {
@@ -117,9 +89,6 @@ const ProductCard = ({ product }) => {
     return () => timer && clearInterval(timer);
   }, [isHovered, images, isOutOfStock]);
 
-  // Determine if we're on the wishlist page.
-  const isOnWishlistPage = location.pathname.includes("/wishlist");
-
   const handleWishlistToggle = async () => {
     if (!auth.isLoggedIn || !auth.userData?.userId) {
       toast.error("Please log in to modify your wishlist");
@@ -131,27 +100,18 @@ const ProductCard = ({ product }) => {
     }
     try {
       if (isFavorite) {
-        if (isOnWishlistPage) {
-          await dispatch(
-            removeFromWishlist({
-              userId: auth.userData.userId,
-              productId: prodId,
-            })
-          ).unwrap();
-          toast.success("Removed from wishlist!");
-        } else {
-          navigate("/wishlist");
-        }
+        await dispatch(removeFromWishlist({
+          userId: auth.userData.userId,
+          productId: prodId,
+        })).unwrap();
+        toast.success("Removed from wishlist!");
       } else {
-        await dispatch(
-          addToWishlist({
-            userId: auth.userData.userId,
-            productId: prodId,
-          })
-        ).unwrap();
+        await dispatch(addToWishlist({
+          userId: auth.userData.userId,
+          productId: prodId,
+        })).unwrap();
         toast.success("Added to wishlist!");
       }
-      dispatch(fetchWishlist(auth.userData.userId));
     } catch (error) {
       toast.error(isFavorite ? "Failed to remove from wishlist" : "Failed to add to wishlist");
       console.error("Wishlist operation error:", error);
@@ -186,18 +146,13 @@ const ProductCard = ({ product }) => {
     }
   };
 
-  const wishlistTooltip = useMemo(() => {
-    if (isFavorite) {
-      return isOnWishlistPage ? "Remove from wishlist" : "View your wishlist";
-    }
-    return "Add to wishlist";
-  }, [isFavorite, isOnWishlistPage]);
+  const wishlistTooltip = useMemo(() =>
+    isFavorite ? "Remove from wishlist" : "Add to wishlist",
+    [isFavorite]
+  );
 
-  const cartTooltip = useMemo(() => {
-    return inCart ? "View Cart" : "Add to Cart";
-  }, [inCart]);
+  const cartTooltip = useMemo(() => (inCart ? "View Cart" : "Add to Cart"), [inCart]);
 
-  // Discount badge displayed on hover.
   const discountBadge = useMemo(() => {
     if (product.discount) {
       return (
@@ -213,14 +168,7 @@ const ProductCard = ({ product }) => {
             zIndex: 2,
           }}
         >
-          <Typography
-            variant="caption"
-            sx={{
-              color: theme.palette.common.white,
-              fontWeight: 600,
-              fontSize: isMobile ? "0.65rem" : "0.75rem",
-            }}
-          >
+          <Typography variant="caption" sx={{ color: theme.palette.common.white, fontWeight: 600, fontSize: isMobile ? "0.65rem" : "0.75rem" }}>
             {product.percentage_Discount}% OFF
           </Typography>
         </Box>
@@ -322,7 +270,7 @@ const ProductCard = ({ product }) => {
               fontSize: { xs: "0.6rem", sm: "0.65rem", md: "0.75rem" },
             }}
           >
-            {product.category.name}
+            {product.category?.name}
           </Typography>
           <Divider
             sx={{
@@ -377,30 +325,11 @@ const ProductCard = ({ product }) => {
           <Tooltip title={wishlistTooltip}>
             <IconButton
               size={isMobile ? "small" : "medium"}
-              onClick={(e) => {
-                e.preventDefault();
-                handleWishlistToggle();
-              }}
-              sx={{
-                backgroundColor: "rgba(255,255,255,0.8)",
-                "&:hover": { backgroundColor: "rgba(255,255,255,0.9)" },
-              }}
+              onClick={(e) => { e.preventDefault(); handleWishlistToggle(); }}
+              sx={{ backgroundColor: "rgba(255,255,255,0.8)", "&:hover": { backgroundColor: "rgba(255,255,255,0.9)" } }}
             >
-              {isFavorite ? (
-                <FavoriteIcon
-                  sx={{
-                    color: theme.palette.custom?.highlight || "red",
-                    fontSize: isMobile ? "1rem" : "1.25rem",
-                  }}
-                />
-              ) : (
-                <FavoriteBorderIcon
-                  sx={{
-                    color: theme.palette.custom?.highlight || "red",
-                    fontSize: isMobile ? "1rem" : "1.25rem",
-                  }}
-                />
-              )}
+              {isFavorite ? <FavoriteIcon sx={{ color: theme.palette.custom?.highlight || "red", fontSize: isMobile ? "1rem" : "1.25rem" }} />
+                           : <FavoriteBorderIcon sx={{ color: theme.palette.custom?.highlight || "red", fontSize: isMobile ? "1rem" : "1.25rem" }} />}
             </IconButton>
           </Tooltip>
         )}
@@ -408,30 +337,11 @@ const ProductCard = ({ product }) => {
           <Tooltip title={cartTooltip}>
             <IconButton
               size={isMobile ? "small" : "medium"}
-              onClick={(e) => {
-                e.preventDefault();
-                handleCartAdd();
-              }}
-              sx={{
-                backgroundColor: "rgba(255,255,255,0.8)",
-                "&:hover": { backgroundColor: "rgba(255,255,255,0.9)" },
-              }}
+              onClick={(e) => { e.preventDefault(); handleCartAdd(); }}
+              sx={{ backgroundColor: "rgba(255,255,255,0.8)", "&:hover": { backgroundColor: "rgba(255,255,255,0.9)" } }}
             >
-              {inCart ? (
-                <ShoppingCartIcon
-                  sx={{
-                    color: theme.palette.custom?.highlight || "green",
-                    fontSize: isMobile ? "1rem" : "1.25rem",
-                  }}
-                />
-              ) : (
-                <ShoppingCartOutlinedIcon
-                  sx={{
-                    color: theme.palette.custom?.highlight || "green",
-                    fontSize: isMobile ? "1rem" : "1.25rem",
-                  }}
-                />
-              )}
+              {inCart ? <ShoppingCartIcon sx={{ color: theme.palette.custom?.highlight || "green", fontSize: isMobile ? "1rem" : "1.25rem" }} />
+                       : <ShoppingCartOutlinedIcon sx={{ color: theme.palette.custom?.highlight || "green", fontSize: isMobile ? "1rem" : "1.25rem" }} />}
             </IconButton>
           </Tooltip>
         )}
