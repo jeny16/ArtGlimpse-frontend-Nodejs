@@ -49,7 +49,6 @@ const ProductDetail = () => {
 
   // Compute product ID using id or _id
   const prodId = useMemo(() => (product?.id || product?._id)?.toString(), [product]);
-
   // Tab state for InfoTabs
   const [tabValue, setTabValue] = useState(0);
   const handleTabChange = (event, newValue) => setTabValue(newValue);
@@ -58,9 +57,6 @@ const ProductDetail = () => {
     dispatch(fetchProductById(id));
   }, [dispatch, id]);
 
-  // ---------------------------
-  // Add to Cart or View Cart
-  // ---------------------------
   const handleCartClick = async () => {
     if (!isLoggedIn || !userData?.userId) {
       toast.error("Please log in to add to cart");
@@ -83,11 +79,19 @@ const ProductDetail = () => {
     }
 
     try {
+      const a = {
+         userId: userData.userId,
+          productId: prodId,
+          quantity: 1,
+          price: product.price,
+      }
+      console.log("heyy how are you >>>", a);
       await dispatch(
         addToCart({
           userId: userData.userId,
           productId: prodId,
           quantity: 1,
+          price: product.price,
         })
       ).unwrap();
       toast.success("Added to cart!");
@@ -322,9 +326,9 @@ const ProductDetail = () => {
         <Box sx={{ flex: 1 }}>
           <Stack spacing={3}>
             {/* Added product name as title */}
-            <Typography variant="h5" sx={{ color: theme.palette.custom.highlight, fontWeight: 600 }}>
+            {/* <Typography variant="h5" sx={{ color: theme.palette.custom.highlight, fontWeight: 600 }}>
               {product.name}
-            </Typography>
+            </Typography> */}
             <PriceDisplay
               price={price}
               discountActive={discountActive}

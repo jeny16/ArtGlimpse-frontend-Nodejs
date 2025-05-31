@@ -2,15 +2,16 @@ import axios from 'axios';
 
 const API_BASE_URL = 'http://localhost:3000';
 
-export const createPaymentIntent = async (amount, currency) => {
+export const createRazorpayOrder = async (amount, currency = 'INR') => {
     try {
         const response = await axios.post(
-            `${API_BASE_URL}/api/payment/create-payment-intent`,
+            `${API_BASE_URL}/api/payment/create-order`,
             { amount, currency }
         );
-        console.log("response of payment", response);
-        return response.data;
+        console.log("Razorpay order response:", response.data);
+        return response.data; // contains { success, order }
     } catch (error) {
+        console.error("Error creating Razorpay order:", error);
         throw error;
     }
 };

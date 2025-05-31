@@ -7,6 +7,7 @@ import { useTheme } from '@mui/material/styles';
 const CartReview = () => {
     const theme = useTheme();
     const cart = useSelector((state) => state.cart.cart);
+    // console.log("cart items", cart);
 
     if (!cart || !cart.items || cart.items.length === 0) {
         return (
@@ -58,8 +59,7 @@ const CartReview = () => {
                         fontSize: '18px',
                     }}
                 >
-                    My Shopping Bag ({cart.items.length}{' '}
-                    {cart.items.length === 1 ? 'Item' : 'Items'})
+                    My Shopping Bag ({cart.items.length} {cart.items.length === 1 ? 'Item' : 'Items'})
                 </Typography>
 
                 <Chip
@@ -131,7 +131,9 @@ const CartReview = () => {
                     </Box>
 
                     {cart.items.map((item) => (
-                        <CartItem key={item.productId} item={item} />
+                        <Box key={item.productData._id}>
+                            <CartItem item={item} />
+                        </Box>
                     ))}
                 </Box>
             </Paper>

@@ -65,15 +65,15 @@ const FilterSidebar = ({
   useEffect(() => {
     fetch('/api/categories')
       .then(res => {
-        console.log("categories fetch status:", res.status);
+        // console.log("categories fetch status:", res.status);
         return res.json();
       })
       .then(cats => {
-        console.log("categories payload:", cats);
+        // console.log("categories payload:", cats);
         setAllCategories(cats.map(c => c.name));
       })
       .catch(err => {
-        console.error("categories fetch failed:", err);
+        // console.error("categories fetch failed:", err);
       });
   }, []);
   

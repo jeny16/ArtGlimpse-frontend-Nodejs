@@ -137,6 +137,7 @@ const ProductCard = ({ product }) => {
           userId: auth.userData.userId,
           productId: prodId,
           quantity: 1,
+          price: product.price,
         })
       ).unwrap();
       toast.success("Added to cart!");

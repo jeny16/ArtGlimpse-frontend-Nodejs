@@ -29,17 +29,19 @@ const computeCartTotal = (cart) => {
     let totalDiscount = 0;
     let shippingCost = 0;
     if (!cart || !cart.items) return 0;
+
     cart.items.forEach((item) => {
-        const price = Number(item.productData.price) || 0;
+        const price = Number(item.productId.price) || 0;
         const quantity = Number(item.quantity) || 0;
         totalMRP += price * quantity;
-        const discount = Number(item.discountPercent) || 0;
+        const discount = Number(item.productId.percentage_Discount) || 0;
         if (discount) {
             totalDiscount += (price * discount * quantity) / 100;
         }
-        const shipping = Number(item.shippingCost) || 0;
+        const shipping = Number(item.productId.shipping_Cost) || 0;
         shippingCost = Math.max(shippingCost, shipping);
     });
+
     let couponDiscount = 0;
     if (cart.couponCode === 'NEWUSER') couponDiscount = totalMRP * 0.1;
     const donation = Number(cart.donationAmount) || 0;

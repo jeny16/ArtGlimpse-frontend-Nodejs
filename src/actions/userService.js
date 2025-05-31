@@ -5,10 +5,10 @@ const userService = {
     getProfile: async (userId) => {
         try {
             const response = await axios.get(`${API_URL}/profile`, { params: { userId } });
-            console.log("Get profile response:", response);
+            // console.log("Get profile response:", response);
             return response.data;
         } catch (error) {
-            console.log("Get profile error:", error);
+            // console.log("Get profile error:", error);    
             throw error.response?.data || 'Failed to get profile';
         }
     },

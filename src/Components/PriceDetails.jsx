@@ -15,14 +15,13 @@ const PriceDetails = ({ onContinue }) => {
     let shippingCost = 0;
 
     items.forEach((item) => {
-        const itemPrice = Number(item.productData.price) || 0;
+        const itemPrice = Number(item?.productData?.price) || 0;
         const quantity = Number(item.quantity) || 0;
         const itemTotal = itemPrice * quantity;
         totalMRP += itemTotal;
-
-        const discountPercent = Number(item.discountPercent) || 0;
+        const discountPercent = Number(item.productData.percentage_Discount) || 0;
         if (discountPercent) {
-            totalDiscount += (itemPrice * discountPercent * quantity) / 100;
+            totalDiscount += Math.trunc((itemPrice * discountPercent * quantity) / 100);
         }
 
         const itemShipping = Number(item.shippingCost) || 0;
