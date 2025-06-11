@@ -40,14 +40,15 @@ const OrderHistory = () => {
   const profile = useSelector((state) => state.profile.profile);
 
   useEffect(() => {
-    if (profile?.id) {
-      dispatch(fetchOrders(profile.id));
+      console.log("profile inside useEffect:", profile);
+    if (profile?._id) {
+      dispatch(fetchOrders(profile._id));
     }
   }, [dispatch, profile]);
 
   const handleRetry = () => {
-    if (profile?.id) {
-      dispatch(fetchOrders(profile.id));
+    if (profile?._id) {
+      dispatch(fetchOrders(profile._id));
     }
   };
 
@@ -123,16 +124,16 @@ const OrderHistory = () => {
                     borderColor: theme.palette.custom.highlight
                   }
                 }}
-                onClick={() => handleCardClick(order.id)}
+                onClick={() => handleCardClick(order._id)}
               >
                 {/* Order Header */}
                 <Box sx={{ p: 2, backgroundColor: 'transparent' }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                     <Typography variant="subtitle1" fontWeight="bold">
-                      Order ID: {order.id}
+                      Order ID: {order._id}
                     </Typography>
                     <Chip
-                      label={order.orderStatus || 'Pending'}
+                      label={order.status || 'Pending'}
                       color={getStatusChipColor(order.orderStatus)}
                       size="small"
                       sx={{
@@ -158,7 +159,7 @@ const OrderHistory = () => {
 
                 {/* Items */}
                 {orderItems.map((item, idx) => {
-                  const productData = item.productData || {};
+                  const productData = item.productId || {};
                   const images = productData.images || [];
                   // ← wrap fallback in getImageUrl
                   const productImage = getImageUrl(images[0] || '/api/placeholder/120/160');

@@ -13,7 +13,7 @@ const CheckoutPayment = forwardRef(({ totalPrice }, ref) => {
     const [error, setError] = useState(null);
 
     const amount = Math.round(totalPrice * 100); // amount in paise
-
+    console.log("amount at checkout", amount);
     const { register, formState: { errors }, watch } = useForm({
         defaultValues: {
             name: '',

@@ -12,26 +12,35 @@ const Addresses = () => {
   const addresses = profile?.addresses || [];
 
   // State for editing/adding
+  // Note: we’ll ensure that editData, when used, always has a defined isDefault field
   const [editIndex, setEditIndex] = useState(null);
-  const [editData, setEditData] = useState(null);
+  const [editData, setEditData] = useState(null); 
   const [showAddForm, setShowAddForm] = useState(false);
 
   // Helper to update addresses in the profile
   const saveAddresses = async (newAddresses) => {
     const updatedProfileData = { ...profile, addresses: newAddresses };
-    await dispatch(updateProfile({ userId: profile.id, profileData: updatedProfileData }));
+    await dispatch(updateProfile({ userId: profile._id, profileData: updatedProfileData }));
   };
 
   // Save (create/edit) an address
   const handleSaveAddress = async (formData) => {
-    const newAddress = { ...formData };
+    // Ensure that formData.isDefault is always a boolean (it may come from AddAddressForm)
+    const newAddress = { 
+      ...formData,
+      isDefault: !!formData.isDefault  // ← FIX: force a boolean
+    };
+
     let updatedAddresses = [];
 
     // If editing
     if (editData !== null && editIndex !== null) {
       if (newAddress.isDefault) {
+        // Unset isDefault on all others, set on the edited one
         updatedAddresses = addresses.map((addr, i) =>
-          i === editIndex ? newAddress : { ...addr, isDefault: false }
+          i === editIndex
+            ? newAddress
+            : { ...addr, isDefault: false }  // ← FIX: force every other addr.isDefault = false
         );
       } else {
         updatedAddresses = addresses.map((addr, i) =>
@@ -39,10 +48,13 @@ const Addresses = () => {
         );
       }
     } else {
-      // If adding
+      // If adding a brand new address
       if (newAddress.isDefault) {
         // Unset default on all existing addresses
-        updatedAddresses = addresses.map((addr) => ({ ...addr, isDefault: false }));
+        updatedAddresses = addresses.map((addr) => ({
+          ...addr,
+          isDefault: false  // ← FIX: force boolean
+        }));
       } else {
         updatedAddresses = [...addresses];
       }
@@ -59,7 +71,11 @@ const Addresses = () => {
 
   // Edit an address
   const handleEditAddress = (address, index) => {
-    setEditData(address);
+    // When we load `address` into editData, ensure it has isDefault always defined:
+    setEditData({
+      ...address,
+      isDefault: !!address.isDefault  // ← FIX: force boolean
+    });
     setEditIndex(index);
     setShowAddForm(false);
   };
@@ -78,12 +94,14 @@ const Addresses = () => {
   const handleSetDefault = async (index) => {
     const updatedAddresses = addresses.map((addr, i) => ({
       ...addr,
-      isDefault: i === index,
+      isDefault: i === index  // ← FIX: always produce true/false
     }));
     await saveAddresses(updatedAddresses);
   };
 
-  const defaultIndex = addresses.findIndex((addr) => addr.isDefault);
+  // Find which address is marked default
+  const defaultIndex = addresses.findIndex((addr) => !!addr.isDefault); // ← FIX: coerce to boolean
+  // All others that are not default
   const otherIndices = addresses
     .map((addr, index) => ({ addr, index }))
     .filter(({ addr }) => !addr.isDefault);
@@ -96,7 +114,8 @@ const Addresses = () => {
       <Paper>
         <AddAddressForm
           onSave={handleSaveAddress}
-          onCancel={() => { }}
+          onCancel={() => {}}
+          // initialData is not provided, so AddAddressForm must fall back to empty defaults
         />
       </Paper>
     );
@@ -161,6 +180,7 @@ const Addresses = () => {
             <AddAddressForm
               onSave={handleSaveAddress}
               onCancel={() => setShowAddForm(false)}
+              // No initialData (so AddAddressForm must use its own defaults)
             />
           </Box>
         )}
@@ -177,10 +197,15 @@ const Addresses = () => {
               Default Address
             </Typography>
             <AddressCard
-              address={addresses[defaultIndex]}
-              onEdit={() => handleEditAddress(addresses[defaultIndex], defaultIndex)}
+              address={{
+                ...addresses[defaultIndex],
+                isDefault: !!addresses[defaultIndex].isDefault  // ← FIX: force boolean
+              }}
+              onEdit={() =>
+                handleEditAddress(addresses[defaultIndex], defaultIndex)
+              }
               onRemove={() => handleRemoveAddress(defaultIndex)}
-              onSetDefault={() => { }}
+              onSetDefault={() => {}}
             />
             {editIndex === defaultIndex && (
               <Box sx={{ mt: 2, ml: 4 }}>
@@ -190,7 +215,10 @@ const Addresses = () => {
                     setEditIndex(null);
                     setEditData(null);
                   }}
-                  initialData={editData}
+                  initialData={{
+                    ...editData,
+                    isDefault: !!editData.isDefault, // ← FIX: force boolean
+                  }}
                 />
               </Box>
             )}
@@ -210,7 +238,10 @@ const Addresses = () => {
             {otherIndices.map(({ addr, index }) => (
               <Box key={index} sx={{ mb: 4 }}>
                 <AddressCard
-                  address={addr}
+                  address={{
+                    ...addr,
+                    isDefault: !!addr.isDefault  // ← FIX: force boolean
+                  }}
                   onEdit={() => handleEditAddress(addr, index)}
                   onRemove={() => handleRemoveAddress(index)}
                   onSetDefault={() => handleSetDefault(index)}
@@ -223,7 +254,10 @@ const Addresses = () => {
                         setEditIndex(null);
                         setEditData(null);
                       }}
-                      initialData={editData}
+                      initialData={{
+                        ...editData,
+                        isDefault: !!editData.isDefault, // ← FIX: force boolean
+                      }}
                     />
                   </Box>
                 )}

@@ -7,7 +7,7 @@ export const fetchProfile = createAsyncThunk(
     async ({ userId }, thunkAPI) => {
         try {
             const data = await userService.getProfile(userId);
-            console.log("data in fetchprofile", data);
+            // console.log("data in fetchprofile", data);
             return data;
         } catch (error) {
             return thunkAPI.rejectWithValue(

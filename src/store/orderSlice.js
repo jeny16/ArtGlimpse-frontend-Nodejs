@@ -6,6 +6,7 @@ export const createOrder = createAsyncThunk(
     async (orderData, thunkAPI) => {
         try {
             const data = await orderService.createOrder(orderData);
+            console.log("order in slice::", data);
             return data;
         } catch (error) {
             return thunkAPI.rejectWithValue(error);
@@ -18,6 +19,7 @@ export const fetchOrders = createAsyncThunk(
     async (userId, thunkAPI) => {
         try {
             const data = await orderService.fetchOrders(userId);
+            // console.log("orders", data)
             return data;
         } catch (error) {
             return thunkAPI.rejectWithValue(error);
