@@ -78,9 +78,9 @@ const router = createBrowserRouter([
       {
         path: "/cart",
         element: (
-          <AuthLayout authentication>
+          // <AuthLayout authentication>
             <CartPage />
-          </AuthLayout>
+          // </AuthLayout>
         ),
       },
       { path: "/order-confirmation", element: <OrderConfirmation /> },

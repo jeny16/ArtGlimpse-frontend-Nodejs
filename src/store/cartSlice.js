@@ -1,178 +1,145 @@
-// src/store/cartSlice.js
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import cartService from '../actions/cartService';
-
-// ────────────────────────────────────────────────────────────────────────────
-// 1) FETCH CART (existing)
-export const fetchCart = createAsyncThunk(
-  'cart/fetchCart',
-  async (userId, thunkAPI) => {
-    try {
-      const data = await cartService.getCart(userId);
-      return data; // expected to be { items: [ … ], couponCode, donationAmount, … }
-    } catch (error) {
-      return thunkAPI.rejectWithValue(error);
-    }
-  }
-);
-
-// ────────────────────────────────────────────────────────────────────────────
-// 2) ADD TO CART (existing)
-export const addToCart = createAsyncThunk(
-  'cart/addToCart',
-  async (cartData, thunkAPI) => {
-    try {
-      const data = await cartService.addProductToCart(cartData);
-      return data; // expect updated cart object
-    } catch (error) {
-      return thunkAPI.rejectWithValue(error);
-    }
-  }
-);
-
-// ────────────────────────────────────────────────────────────────────────────
-// 3) UPDATE QUANTITY (existing)
-export const updateCartQuantity = createAsyncThunk(
-  'cart/updateCartQuantity',
-  async (payload, thunkAPI) => {
-    try {
-      const data = await cartService.updateProductQuantity(payload);
-      return data; // expect updated cart object
-    } catch (error) {
-      return thunkAPI.rejectWithValue(error);
-    }
-  }
-);
-
-// ────────────────────────────────────────────────────────────────────────────
-// 4) REMOVE FROM CART (existing)
-export const removeFromCart = createAsyncThunk(
-  'cart/removeFromCart',
-  async ({ userId, productId }, thunkAPI) => {
-    try {
-      const data = await cartService.removeProductFromCart({ userId, productId });
-      return data; // expect updated cart object
-    } catch (error) {
-      return thunkAPI.rejectWithValue(error);
-    }
-  }
-);
-
-// ────────────────────────────────────────────────────────────────────────────
-// 5) CLEAR CART on the SERVER (NEW)
-// This thunk calls DELETE /api/cart/:userId/clear, then empties Redux state.
-export const clearCartServer = createAsyncThunk(
-  'cart/clearCartServer',
-  async (userId, thunkAPI) => {
-    try {
-      const data = await cartService.clearCart(userId);
-      return data; // you can inspect data.success or whatever your API returns
-    } catch (error) {
-      return thunkAPI.rejectWithValue(error);
-    }
-  }
-);
+// src/redux/slices/cartSlice.js
+import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
+import cartService from "../actions/cartService";
 
 const initialState = {
-  cart: null,       // will hold the full cart object { items: […], couponCode, … }
-  status: 'idle',   // 'idle' | 'loading' | 'succeeded' | 'failed'
+  cart: { items: [], couponCode: null, donationAmount: 0 },
+  loading: false,
   error: null,
+  isGuest: true,
 };
 
+// Initialize guest cart from localStorage
+const stored = localStorage.getItem("guestCart");
+if (stored) {
+  try {
+    initialState.cart = JSON.parse(stored);
+  } catch {}
+}
+
+export const fetchCart = createAsyncThunk(
+  "cart/fetch",
+  async (userId, thunkAPI) => {
+    try {
+      return await cartService.getCartByUserId(userId);
+    } catch (error) {
+      return thunkAPI.rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);
+
+export const addItemToCart = createAsyncThunk(
+  "cart/addItem",
+  async ({ userId, product, quantity }, thunkAPI) => {
+    if (!userId) {
+      // guest: build fresh from localStorage
+      const guest = JSON.parse(localStorage.getItem("guestCart")) || { items: [] };
+      const items = [...guest.items];
+      const idx = items.findIndex(i => i.productId === product._id);
+      if (idx > -1) {
+        items[idx] = { ...items[idx], quantity: items[idx].quantity + quantity };
+      } else {
+        items.push({ productId: product._id, quantity, productData: product });
+      }
+      const updated = { ...guest, items };
+      localStorage.setItem("guestCart", JSON.stringify(updated));
+      return updated;
+    }
+    try {
+      return await cartService.addItemToCart(userId, product._id, quantity, product.price);
+    } catch (error) {
+      return thunkAPI.rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);
+
+export const updateCartQuantity = createAsyncThunk(
+  "cart/updateQuantity",
+  async ({ userId, productId, quantity }, thunkAPI) => {
+    if (!userId) {
+      const guest = JSON.parse(localStorage.getItem("guestCart")) || { items: [] };
+      const items = guest.items.map(i =>
+        i.productId === productId ? { ...i, quantity } : i
+      );
+      const updated = { ...guest, items };
+      localStorage.setItem("guestCart", JSON.stringify(updated));
+      return updated;
+    }
+    try {
+      return await cartService.updateItemQuantity(userId, productId, quantity);
+    } catch (error) {
+      return thunkAPI.rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);
+
+export const removeFromCart = createAsyncThunk(
+  "cart/removeItem",
+  async ({ userId, productId }, thunkAPI) => {
+    if (!userId) {
+      const guest = JSON.parse(localStorage.getItem("guestCart")) || { items: [] };
+      const items = guest.items.filter(i => i.productId !== productId);
+      const updated = { ...guest, items };
+      localStorage.setItem("guestCart", JSON.stringify(updated));
+      return updated;
+    }
+    try {
+      return await cartService.deleteItemFromCart(userId, productId);
+    } catch (error) {
+      return thunkAPI.rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);
+
+export const mergeGuestCart = createAsyncThunk(
+  "cart/merge",
+  async ({ userId }, thunkAPI) => {
+    try {
+      const guest = JSON.parse(localStorage.getItem("guestCart")) || { items: [] };
+      for (const i of guest.items) {
+        await cartService.addItemToCart(userId, i.productId, i.quantity, i.productData.price);
+      }
+      localStorage.removeItem("guestCart");
+      return await cartService.getCartByUserId(userId);
+    } catch (error) {
+      return thunkAPI.rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);
+
 const cartSlice = createSlice({
-  name: 'cart',
+  name: "cart",
   initialState,
   reducers: {
-    // Synchronous action: clear local cart only (if you ever need it)
-    clearCart: (state) => {
-      state.cart = { items: [] };
+    resetCart: state => {
+      state.cart = { items: [], couponCode: null, donationAmount: 0 };
+      state.isGuest = true;
     },
-    applyCoupon: (state, action) => {
-      if (state.cart) state.cart.couponCode = action.payload;
-    },
-    setDonationAmount: (state, action) => {
-      if (state.cart) state.cart.donationAmount = action.payload;
+    clearCartServer: state => {
+      state.cart = { items: [], couponCode: null, donationAmount: 0 };
     }
   },
-  extraReducers: (builder) => {
+  extraReducers: builder => {
     builder
-      // ────────────────────────────────────────────────────────────────────────
-      // FETCH CART
-      .addCase(fetchCart.pending, (state) => {
-        state.status = 'loading';
-        state.error = null;
+      .addCase(fetchCart.fulfilled, (state, { payload }) => {
+        state.cart = payload;
+        state.isGuest = false;
       })
-      .addCase(fetchCart.fulfilled, (state, action) => {
-        state.status = 'succeeded';
-        state.cart = action.payload; // payload should be { items: […], couponCode, donationAmount }
+      .addCase(addItemToCart.fulfilled, (state, { payload }) => {
+        state.cart = payload;
       })
-      .addCase(fetchCart.rejected, (state, action) => {
-        state.status = 'failed';
-        state.error = action.payload || 'Failed to fetch cart';
+      .addCase(updateCartQuantity.fulfilled, (state, { payload }) => {
+        state.cart = payload;
       })
-
-      // ────────────────────────────────────────────────────────────────────────
-      // ADD TO CART
-      .addCase(addToCart.pending, (state) => {
-        state.status = 'loading';
-        state.error = null;
+      .addCase(removeFromCart.fulfilled, (state, { payload }) => {
+        state.cart = payload;
       })
-      .addCase(addToCart.fulfilled, (state, action) => {
-        state.status = 'succeeded';
-        state.cart = action.payload; // updated cart from server
-      })
-      .addCase(addToCart.rejected, (state, action) => {
-        state.status = 'failed';
-        state.error = action.payload || 'Failed to add product to cart';
-      })
-
-      // ────────────────────────────────────────────────────────────────────────
-      // UPDATE CART QUANTITY
-      .addCase(updateCartQuantity.pending, (state) => {
-        state.status = 'loading';
-        state.error = null;
-      })
-      .addCase(updateCartQuantity.fulfilled, (state, action) => {
-        state.status = 'succeeded';
-        state.cart = action.payload; // updated cart from server
-      })
-      .addCase(updateCartQuantity.rejected, (state, action) => {
-        state.status = 'failed';
-        state.error = action.payload || 'Failed to update product quantity';
-      })
-
-      // ────────────────────────────────────────────────────────────────────────
-      // REMOVE FROM CART
-      .addCase(removeFromCart.pending, (state) => {
-        state.status = 'loading';
-        state.error = null;
-      })
-      .addCase(removeFromCart.fulfilled, (state, action) => {
-        state.status = 'succeeded';
-        state.cart = action.payload; // updated cart from server
-      })
-      .addCase(removeFromCart.rejected, (state, action) => {
-        state.status = 'failed';
-        state.error = action.payload || 'Failed to remove product from cart';
-      })
-
-      // ────────────────────────────────────────────────────────────────────────
-      // CLEAR CART on SERVER (NEW)
-      .addCase(clearCartServer.pending, (state) => {
-        state.status = 'loading';
-        state.error = null;
-      })
-      .addCase(clearCartServer.fulfilled, (state) => {
-        state.status = 'succeeded';
-        // Wipe out the local cart object so that items = []
-        state.cart = { items: [] };
-      })
-      .addCase(clearCartServer.rejected, (state, action) => {
-        state.status = 'failed';
-        state.error = action.payload || 'Failed to clear cart on server';
+      .addCase(mergeGuestCart.fulfilled, (state, { payload }) => {
+        state.cart = payload;
+        state.isGuest = false;
       });
-  },
+  }
 });
 
-export const { applyCoupon, setDonationAmount, clearCart } = cartSlice.actions;
+export const { resetCart, clearCartServer } = cartSlice.actions;
 export default cartSlice.reducer;

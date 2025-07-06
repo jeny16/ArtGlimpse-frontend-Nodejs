@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Box, Typography, Button } from '@mui/material';
 import { useSelector, useDispatch } from 'react-redux';
 import { useTheme } from '@mui/material/styles';
-import { updateProfile } from '../store/profileSlice';
+import { fetchProfile, updateProfile } from '../store/profileSlice';
 import { AddAddressForm, AddressCard } from '../Components/index';
 
 const AddressSelection = ({ selectedAddress, setSelectedAddress }) => {
@@ -10,16 +10,30 @@ const AddressSelection = ({ selectedAddress, setSelectedAddress }) => {
   const dispatch = useDispatch();
   const profile = useSelector((state) => state.profile.profile);
 
+  // Fetch profile on mount if not already loaded
+  useEffect(() => {
+    if (!profile) {
+      dispatch(fetchProfile());
+    }
+  }, [profile, dispatch]);
+
+  // Don’t render the address UI until profile is loaded
+  if (!profile || !profile._id) {
+    return (
+      <Box sx={{ textAlign: 'center', py: 4 }}>
+        <Typography variant="body1">Loading your addresses…</Typography>
+      </Box>
+    );
+  }
+
   // Ensure every address has an id and a defined isDefault (boolean)
-  const addresses = (profile?.addresses || []).map((addr, index) => ({
+  const addresses = (profile.addresses || []).map((addr, index) => ({
     id: addr.id || index.toString(),
-    // if addr.isDefault was undefined, force it to false
-    isDefault: !!addr.isDefault,  // ← FIX: force boolean
+    isDefault: !!addr.isDefault,
     ...addr,
   }));
 
-  // Local state for editing or adding addresses.
-  // We’ll initialize editData so that it always has isDefault (false by default).
+  // Local state for editing or adding addresses
   const [editAddressId, setEditAddressId] = useState(null);
   const [editData, setEditData] = useState({
     name: "",
@@ -29,14 +43,13 @@ const AddressSelection = ({ selectedAddress, setSelectedAddress }) => {
     zip: "",
     country: "",
     mobile: "",
-    isDefault: false,       // ← FIX: ensure boolean
+    isDefault: false,
   });
   const [showAddForm, setShowAddForm] = useState(false);
 
-  // Auto‐select default or first available address if none is selected.
+  // Auto‐select default or first available address if none is selected
   useEffect(() => {
     if (addresses.length > 0 && !selectedAddress) {
-      // Find the first address whose isDefault is true (boolean)
       const defaultAddress = addresses.find((addr) => addr.isDefault);
       setSelectedAddress(defaultAddress || addresses[0]);
     }
@@ -57,17 +70,16 @@ const AddressSelection = ({ selectedAddress, setSelectedAddress }) => {
 
   const handleEditAddress = (id, addressData) => {
     setEditAddressId(id);
-    // Ensure we load a copy that has a boolean `isDefault`
     setEditData({
       ...addressData,
-      isDefault: !!addressData.isDefault,  // ← FIX: force boolean
+      isDefault: !!addressData.isDefault,
     });
     setShowAddForm(false);
   };
 
   const handleSaveAddress = (formData) => {
     // Always coerce formData.isDefault to boolean
-    const normalizedForm = { ...formData, isDefault: !!formData.isDefault }; // ← FIX
+    const normalizedForm = { ...formData, isDefault: !!formData.isDefault };
     let updatedAddresses = [];
 
     if (editAddressId !== null) {
@@ -78,10 +90,9 @@ const AddressSelection = ({ selectedAddress, setSelectedAddress }) => {
     } else {
       // Add new address
       if (normalizedForm.isDefault) {
-        // Unset default on all existing addresses
         updatedAddresses = addresses.map((addr) => ({
           ...addr,
-          isDefault: false  // ← FIX: force boolean
+          isDefault: false,
         }));
       } else {
         updatedAddresses = [...addresses];
@@ -95,6 +106,8 @@ const AddressSelection = ({ selectedAddress, setSelectedAddress }) => {
 
     const updatedProfile = { ...profile, addresses: updatedAddresses };
     dispatch(updateProfile({ userId: profile._id, profileData: updatedProfile }));
+
+    // Reset form state
     setEditAddressId(null);
     setEditData({
       name: "",
@@ -104,11 +117,11 @@ const AddressSelection = ({ selectedAddress, setSelectedAddress }) => {
       zip: "",
       country: "",
       mobile: "",
-      isDefault: false, // ← FIX: reset to a definite boolean
+      isDefault: false,
     });
     setShowAddForm(false);
 
-    // Optionally auto‐select the newly added address if none is selected
+    // Auto‐select newly added address if none selected
     if (!selectedAddress) {
       setSelectedAddress(updatedAddresses[updatedAddresses.length - 1]);
     }
@@ -124,7 +137,7 @@ const AddressSelection = ({ selectedAddress, setSelectedAddress }) => {
       zip: "",
       country: "",
       mobile: "",
-      isDefault: false, // ← FIX: reset
+      isDefault: false,
     });
     setShowAddForm(false);
   };
@@ -132,7 +145,7 @@ const AddressSelection = ({ selectedAddress, setSelectedAddress }) => {
   const handleSetDefault = (id) => {
     const updatedAddresses = addresses.map((addr) => ({
       ...addr,
-      isDefault: addr.id === id, // ← FIX: boolean
+      isDefault: addr.id === id,
     }));
     const updatedProfile = { ...profile, addresses: updatedAddresses };
     dispatch(updateProfile({ userId: profile._id, profileData: updatedProfile }));
@@ -184,7 +197,7 @@ const AddressSelection = ({ selectedAddress, setSelectedAddress }) => {
                 zip: "",
                 country: "",
                 mobile: "",
-                isDefault: false, // ← FIX: reset
+                isDefault: false,
               });
               setShowAddForm(true);
             }}
@@ -251,7 +264,7 @@ const AddressSelection = ({ selectedAddress, setSelectedAddress }) => {
                     sx={{ width: '100%' }}
                     onSave={handleSaveAddress}
                     onCancel={handleCancelEdit}
-                    initialData={editData} // ← FIX: editData always has isDefault boolean
+                    initialData={editData}
                   />
                 </Box>
               )}

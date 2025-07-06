@@ -14,34 +14,35 @@ import {
 import ShoppingCartOutlinedIcon from "@mui/icons-material/ShoppingCartOutlined";
 import { useDispatch, useSelector } from "react-redux";
 import { createOrder } from "../store/orderSlice";
-import {
-  clearCartServer, // <-- updated import
-  fetchCart
-} from "../store/cartSlice";
-import { useNavigate } from "react-router-dom";
+import { clearCartServer, fetchCart } from "../store/cartSlice";
+import { fetchProducts } from "../store/productSlice";
 import { fetchProfile } from "../store/profileSlice";
+import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import conf from "../conf";
 
-// Helper to compute total payable (in rupees)
-const computeCartTotal = (cart) => {
+const computeCartTotal = (cart, products = []) => {
   let totalMRP = 0;
   let totalDiscount = 0;
   let shippingCost = 0;
   if (!cart || !cart.items) return 0;
 
   cart.items.forEach((item) => {
-    // item.productData.price is the product’s price from your populated payload
-    const price = Number(item.productData?.price) || 0;
+    const product =
+      products.find((prod) => prod._id === item.productId) ||
+      item.productData ||
+      {};
+
+    const price = Number(product.price) || 0;
     const quantity = Number(item.quantity) || 0;
     totalMRP += price * quantity;
 
-    // If you stored a percentage_Discount in item.productData, use it:
-    const discount = Number(item.productData?.percentage_Discount) || 0;
+    const discount = Number(product.percentage_Discount) || 0;
     if (discount) {
       totalDiscount += (price * discount * quantity) / 100;
     }
-    const shipping = Number(item.productData?.shipping_Cost) || 0;
+
+    const shipping = Number(product.shipping_Cost) || 0;
     shippingCost = Math.max(shippingCost, shipping);
   });
 
@@ -55,32 +56,43 @@ const computeCartTotal = (cart) => {
 const CartPage = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+
   const { cart, status, error } = useSelector((state) => state.cart);
+  const { products } = useSelector((state) => state.product);
   const profile = useSelector((state) => state.profile.profile);
   const { userData } = useSelector((state) => state.auth);
   const userId = userData?.userId || userData?._id;
 
-  // Checkout steps:
   const [activeStep, setActiveStep] = useState(0);
   const [selectedAddress, setSelectedAddress] = useState(null);
 
-  // 1) Fetch cart on mount (when userId is known)
+  // 1️⃣ Load product catalog
+  useEffect(() => {
+    dispatch(fetchProducts());
+  }, [dispatch]);
+
+  // 2️⃣ Load cart for this user
   useEffect(() => {
     if (userId) {
       dispatch(fetchCart(userId));
     }
   }, [dispatch, userId]);
 
-  // 2) Fetch profile for address list
+  // 3️⃣ Load profile for this user
   useEffect(() => {
     if (userId && !profile) {
       dispatch(fetchProfile({ userId }));
     }
   }, [dispatch, userId, profile]);
 
-  // 3) Razorpay checkout logic (unchanged except for the “clear cart” part)
   const openRazorpayCheckout = async () => {
-    const amountInPaise = computeCartTotal(cart) * 100;
+    if (!userId) {
+      toast.error("Please login to proceed with payment.");
+      navigate("/login");
+      return;
+    }
+
+    const amountInPaise = computeCartTotal(cart, products) * 100;
     const options = {
       key: conf.razorpayKey,
       amount: amountInPaise,
@@ -90,31 +102,25 @@ const CartPage = () => {
       handler: async function (response) {
         const razorpayPaymentId = response.razorpay_payment_id;
 
-        // Build orderData exactly as your backend expects:
         const orderData = {
           userId: profile._id || profile.id,
           items: cart.items.map((item) => ({
             productId: String(item.productId._id || item.productId),
             quantity: item.quantity,
-            price: item.productData?.price
+            productData: item.productId,
+            price:
+              products.find((p) => p._id === item.productId)?.price ||
+              item.productData?.price ||
+              0,
           })),
-          totalAmount: computeCartTotal(cart),
+          totalAmount: computeCartTotal(cart, products),
           shippingAddress: selectedAddress,
-          paymentInfo: { razorpayPaymentId }
+          paymentInfo: { razorpayPaymentId },
         };
 
         try {
-          // 3a) Create order on back end
           await dispatch(createOrder(orderData)).unwrap();
-
-          // 3b) Clear cart on the server and in Redux
           await dispatch(clearCartServer(userId)).unwrap();
-          // Now state.cart.items === []
-
-          // 3c) (Optional) Refetch from back end if you want to double‐check
-          // await dispatch(fetchCart(userId)).unwrap();
-
-          // 3d) Navigate to confirmation page
           navigate("/order-confirmation");
         } catch (err) {
           toast.error(
@@ -126,14 +132,14 @@ const CartPage = () => {
       prefill: {
         name: profile.name || "",
         email: userData.email || "",
-        contact: profile.phone || ""
+        contact: profile.phone || "",
       },
       notes: {
-        address: selectedAddress
+        address: selectedAddress,
       },
       theme: {
-        color: "#F37254"
-      }
+        color: "#F37254",
+      },
     };
 
     const rzp = new window.Razorpay(options);
@@ -146,7 +152,6 @@ const CartPage = () => {
     rzp.open();
   };
 
-  // 4) Stepper logic
   const handleNext = async () => {
     if (activeStep === 0) {
       setActiveStep(1);
@@ -176,18 +181,6 @@ const CartPage = () => {
       ? "Continue"
       : "Confirm Payment";
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // Rendering logic (loading / error / empty / normal)
-  if (!userId) {
-    return (
-      <Container maxWidth="lg" sx={{ py: 2 }}>
-        <Typography variant="h5" align="center">
-          Please login to view your cart.
-        </Typography>
-      </Container>
-    );
-  }
-
   if (status === "loading") {
     return <Loader />;
   }
@@ -201,7 +194,6 @@ const CartPage = () => {
     );
   }
 
-  // If the cart object doesn’t exist or has zero items:
   if (!cart || !Array.isArray(cart.items) || cart.items.length === 0) {
     return (
       <EmptyState
@@ -214,13 +206,13 @@ const CartPage = () => {
     );
   }
 
-  const totalPrice = computeCartTotal(cart);
+  const totalPrice = computeCartTotal(cart, products);
 
   return (
     <Container maxWidth="lg" sx={{ py: 4, mt: 20 }}>
       <StepperNav activeStep={activeStep} />
+
       <Grid container spacing={3}>
-        {/* Main Content */}
         <Grid item xs={12} md={8}>
           {activeStep === 0 && <CartReview />}
           {activeStep === 1 && (
@@ -241,7 +233,6 @@ const CartPage = () => {
           )}
         </Grid>
 
-        {/* Right Column */}
         <Grid item xs={12} md={4}>
           <PriceDetails />
           <Box
@@ -249,7 +240,7 @@ const CartPage = () => {
               mt: 3,
               gap: 2,
               display: "flex",
-              justifyContent: "space-between"
+              justifyContent: "space-between",
             }}
           >
             {activeStep > 0 && (
@@ -259,11 +250,12 @@ const CartPage = () => {
                 sx={{
                   bgcolor: "transparent",
                   color: (theme) => theme.palette.custom.highlight,
-                  border: (theme) => `1px solid ${theme.palette.custom.highlight}`,
+                  border: (theme) =>
+                    `1px solid ${theme.palette.custom.highlight}`,
                   "&:hover": {
                     bgcolor: (theme) => theme.palette.custom.accent,
-                    color: "#fff"
-                  }
+                    color: "#fff",
+                  },
                 }}
               />
             )}
@@ -275,8 +267,8 @@ const CartPage = () => {
                 bgcolor: (theme) => theme.palette.custom.highlight,
                 color: "#fff",
                 "&:hover": {
-                  bgcolor: (theme) => theme.palette.custom.accent
-                }
+                  bgcolor: (theme) => theme.palette.custom.accent,
+                },
               }}
             />
           </Box>

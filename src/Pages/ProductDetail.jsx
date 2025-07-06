@@ -1,8 +1,9 @@
+// src/Pages/ProductDetail.jsx
 import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchProductById } from '../store/productSlice';
-import { addToCart, fetchCart } from '../store/cartSlice';
+import { addItemToCart, fetchCart } from '../store/cartSlice';
 import { addToWishlist, fetchWishlist } from '../store/wishlistSlice';
 import { toast } from 'react-toastify';
 
@@ -18,7 +19,7 @@ import {
   useTheme,
   useMediaQuery,
   Rating,
-  Chip
+  Chip,
 } from '@mui/material';
 
 import ArrowBackIosIcon from '@mui/icons-material/ArrowBackIos';
@@ -32,7 +33,14 @@ import LocationOnIcon from '@mui/icons-material/LocationOn';
 import LocalShippingIcon from '@mui/icons-material/LocalShipping';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import InventoryIcon from '@mui/icons-material/Inventory';
-import { ImageGrid, InfoTabs, ActionButton, PriceDisplay, FeatureBadge, ChipGroup } from '../Components/index';
+import {
+  ImageGrid,
+  InfoTabs,
+  ActionButton,
+  PriceDisplay,
+  FeatureBadge,
+  ChipGroup,
+} from '../Components/index';
 
 const ProductDetail = () => {
   const theme = useTheme();
@@ -41,420 +49,188 @@ const ProductDetail = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
-  // Redux slices
+  // Redux state
   const { product, isLoading, error } = useSelector((state) => state.product);
   const { cart } = useSelector((state) => state.cart);
   const { wishlist } = useSelector((state) => state.wishlist);
   const { userData, isLoggedIn } = useSelector((state) => state.auth);
 
-  // Compute product ID using id or _id
-  const prodId = useMemo(() => (product?.id || product?._id)?.toString(), [product]);
-  // Tab state for InfoTabs
-  const [tabValue, setTabValue] = useState(0);
-  const handleTabChange = (event, newValue) => setTabValue(newValue);
+  // Determine product ID
+  const prodId = useMemo(
+    () => (product?._id || product?.id)?.toString(),
+    [product]
+  );
 
+  // Tab state
+  const [tabValue, setTabValue] = useState(0);
+  const handleTabChange = (e, v) => setTabValue(v);
+
+  // Fetch product (and optionally cart+wishlist)
   useEffect(() => {
     dispatch(fetchProductById(id));
-  }, [dispatch, id]);
+    if (isLoggedIn && userData?.userId) {
+      dispatch(fetchCart(userData.userId));
+      dispatch(fetchWishlist(userData.userId));
+    }
+  }, [dispatch, id, isLoggedIn, userData]);
 
+  // Cart button handler
   const handleCartClick = async () => {
-    if (!isLoggedIn || !userData?.userId) {
-      toast.error("Please log in to add to cart");
-      return;
-    }
     if (!prodId) {
-      toast.error("Product ID not available");
+      toast.error('Product ID not available');
       return;
     }
-
-    // Updated cart check: checks for productId or product.id/_id
-    const inCart = cart?.items?.some(item => {
-      const itemId = (item.productId || item.product?.id || item.product?._id)?.toString();
-      return itemId === prodId;
-    });
-
-    if (inCart) {
-      navigate("/cart");
-      return;
-    }
+    const inCart = cart?.items?.some(
+      (item) => (item.productId || item.product?._id)?.toString() === prodId
+    );
+    if (inCart) return navigate('/cart');
 
     try {
-      const a = {
-         userId: userData.userId,
-          productId: prodId,
-          quantity: 1,
-          price: product.price,
-      }
-      console.log("heyy how are you >>>", a);
       await dispatch(
-        addToCart({
-          userId: userData.userId,
-          productId: prodId,
+        addItemToCart({
+          userId: isLoggedIn ? userData.userId : null,
+          product,
           quantity: 1,
-          price: product.price,
         })
       ).unwrap();
-      toast.success("Added to cart!");
-      // Refresh cart data so the button text updates
-      dispatch(fetchCart(userData.userId));
+      toast.success('Added to cart!');
+      if (isLoggedIn) dispatch(fetchCart(userData.userId));
     } catch (err) {
-      toast.error("Failed to add to cart");
-      console.error("Cart error:", err);
+      toast.error('Failed to add to cart');
+      console.error('Cart error:', err);
     }
   };
 
-  // ---------------------------
-  // Add to Wishlist or View Wishlist
-  // ---------------------------
+  // Wishlist button handler
   const handleWishlistClick = async () => {
-    if (!isLoggedIn || !userData?.userId) {
-      toast.error("Please log in to modify your wishlist");
-      return;
-    }
     if (!prodId) {
-      toast.error("Product ID not available");
+      toast.error('Product ID not available');
       return;
     }
-
-    const inWishlist = wishlist?.products?.some(p => {
-      const wishId = (p.id || p._id)?.toString();
-      return wishId === prodId;
-    });
-
-    if (inWishlist) {
-      navigate("/wishlist");
-      return;
-    }
+    const inWishlist = wishlist?.products?.some(
+      (p) => (p._id || p.id)?.toString() === prodId
+    );
+    if (inWishlist) return navigate('/wishlist');
 
     try {
       await dispatch(
-        addToWishlist({
-          userId: userData.userId,
-          productId: prodId,
-        })
+        addToWishlist({ userId: userData.userId, productId: prodId })
       ).unwrap();
-      toast.success("Added to wishlist!");
-      // Refresh wishlist data so the button text updates
+      toast.success('Added to wishlist!');
       dispatch(fetchWishlist(userData.userId));
     } catch (err) {
-      toast.error("Failed to add to wishlist");
-      console.error("Wishlist error:", err);
+      toast.error('Failed to add to wishlist');
+      console.error(err);
     }
   };
 
-  // Determine current state using prodId
-  const inCart = cart?.items?.some(item => {
-    const itemId = (item.productId || item.product?.id || item.product?._id)?.toString();
-    return itemId === prodId;
-  });
-  const inWishlist = wishlist?.products?.some(p => {
-    const wishId = (p.id || p._id)?.toString();
-    return wishId === prodId;
-  });
+  // Button labels
+  const inCart = cart?.items?.some(
+    (item) => (item.productId || item.product?._id)?.toString() === prodId
+  );
+  const inWishlist = wishlist?.products?.some(
+    (p) => (p._id || p.id)?.toString() === prodId
+  );
+  const cartButtonText = inCart ? 'Go to Cart' : 'Add to Bag';
+  const wishlistButtonText = inWishlist ? 'Go to Wishlist' : 'Add to Wishlist';
 
-  const cartButtonText = inCart ? "Go to Cart" : "Add to Bag";
-  const wishlistButtonText = inWishlist ? "Go to Wishlist" : "Add to Wishlist";
-
+  // Loading / error states
   if (isLoading) {
     return (
-      <Box
-        display="flex"
-        justifyContent="center"
-        alignItems="center"
-        minHeight="100vh"
-        sx={{ backgroundColor: theme.palette.background.default }}
-      >
-        <CircularProgress size={60} sx={{ color: theme.palette.custom.highlight }} />
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="100vh">
+        <CircularProgress />
       </Box>
     );
   }
-
   if (error) {
     return (
-      <Box
-        display="flex"
-        flexDirection="column"
-        alignItems="center"
-        justifyContent="center"
-        minHeight="100vh"
-        sx={{ backgroundColor: theme.palette.background.default }}
-      >
-        <Typography variant="h5" sx={{ color: theme.palette.error.main, mb: 2 }}>
-          Error: {error}
-        </Typography>
-        <ActionButton
-          buttonType="highlight"
-          onClick={() => navigate('/products')}
-          sx={{ mt: 3 }}
-        >
-          Return to Products
-        </ActionButton>
+      <Box textAlign="center" py={10}>
+        <Typography color="error">Error: {error}</Typography>
       </Box>
     );
   }
-
   if (!product) return null;
 
-  const price = product.price || 0;
-  const discountActive = product.discount;
-  const discountPercent = product.percentage_Discount || 0;
-  const images = product.images || [];
-
-  const tabContent = [
-    {
-      label: 'Description',
-      content: (
-        <Box>
-          <Typography
-            variant="body1"
-            paragraph
-            sx={{
-              color: theme.palette.neutral.main,
-              lineHeight: 1.6,
-              mb: 3,
-            }}
-          >
-            {product.description ||
-              "This beautiful handcrafted product showcases the finest craftsmanship with attention to detail. Made with premium materials, this item promises both style and durability for years to come."}
-          </Typography>
-          <ChipGroup
-            title="Materials"
-            items={product.materials_Made || ["Cotton", "Linen", "Natural Dye"]}
-            variant="highlight"
-          />
-          <ChipGroup
-            title="Tags"
-            items={product.tags || ["Handcrafted", "Eco-friendly", "Traditional"]}
-            variant="outline"
-          />
-        </Box>
-      )
-    },
-    {
-      label: 'Shipping',
-      content: (
-        <Box>
-          <Stack spacing={3}>
-            <Box>
-              <Typography
-                variant="subtitle1"
-                fontWeight="bold"
-                gutterBottom
-                sx={{ color: theme.palette.custom.highlight, mb: 1 }}
-              >
-                Shipping Information
-              </Typography>
-              <Typography variant="body1" sx={{ color: theme.palette.neutral.main }}>
-                Estimated delivery time: {product.shipping_Time || product.shipping_time || '3-5 days'}
-              </Typography>
-            </Box>
-            <Box>
-              <Typography
-                variant="subtitle1"
-                fontWeight="bold"
-                gutterBottom
-                sx={{ color: theme.palette.custom.highlight, mb: 1 }}
-              >
-                Return Policy
-              </Typography>
-              <Typography variant="body1" sx={{ color: theme.palette.neutral.main }}>
-                30 days return policy. See terms and conditions for more details.
-              </Typography>
-            </Box>
-          </Stack>
-        </Box>
-      )
-    },
-    {
-      label: 'Reviews',
-      content: (
-        <Box>
-          <Typography variant="body1" sx={{ color: theme.palette.neutral.main, mb: 3 }}>
-            Customer reviews will be displayed here.
-          </Typography>
-        </Box>
-      )
-    }
-  ];
-
+  // Layout
   return (
-    <Container
-      maxWidth="lg"
-      sx={{
-        py: { xs: 4, md: 6 },
-        my: { xs: 4, md: 20 },
-      }}
-    >
-      {isMobile && (
-        <IconButton
-          onClick={() => navigate(-1)}
-          sx={{ mb: 2, color: theme.palette.custom.highlight }}
-        >
+    <Container maxWidth="lg" sx={{ py: 4, mt: isMobile ? 4 : 20 }}>
+      {/* Breadcrumb & back */}
+      {isMobile ? (
+        <IconButton onClick={() => navigate(-1)} sx={{ mb: 2 }}>
           <ArrowBackIosIcon />
         </IconButton>
+      ) : (
+        <Typography
+          variant="subtitle2"
+          onClick={() => navigate('/shop')}
+          sx={{ cursor: 'pointer', mb: 2 }}
+        >
+          {product.category?.name} / {product.name}
+        </Typography>
       )}
 
-      {!isMobile && (
-        <Box mb={2}>
-          <Typography
-            variant="subtitle2"
-            sx={{
-              cursor: 'pointer',
-              color: theme.palette.custom.highlight,
-              '&:hover': { textDecoration: 'underline' },
-            }}
-            onClick={() => navigate('/shop')}
-          >
-            {product.category.name || 'Home Decor'} / {product.name || 'Handcrafted Product'}
-          </Typography>
-        </Box>
-      )}
-
-      <Stack
-        direction={isMobile ? 'column' : 'row'}
-        spacing={isMobile ? 3 : 5}
-        sx={{
-          p: 3,
-          borderRadius: 1,
-          overflow: 'hidden',
-        }}
-      >
-        <Box sx={{ flex: 1 }}>
-          <ImageGrid images={images} productName={product.name} />
+      <Stack direction={isMobile ? 'column' : 'row'} spacing={5}>
+        {/* Images */}
+        <Box flex={1}>
+          <ImageGrid images={product.images || []} productName={product.name} />
         </Box>
 
-        <Box sx={{ flex: 1 }}>
+        {/* Details */}
+        <Box flex={1}>
           <Stack spacing={3}>
-            {/* Added product name as title */}
-            {/* <Typography variant="h5" sx={{ color: theme.palette.custom.highlight, fontWeight: 600 }}>
-              {product.name}
-            </Typography> */}
             <PriceDisplay
-              price={price}
-              discountActive={discountActive}
-              discountPercent={discountPercent}
+              price={product.price}
+              discountActive={product.discount}
+              discountPercent={product.percentage_Discount}
               currency={product.currency || '₹'}
             />
-
+            {/* Seller Rating */}
             <Stack direction="row" alignItems="center" spacing={1}>
               <Rating
-                value={product.seller?.rating || 4.2}
-                precision={0.1}
+                value={product.seller?.rating || 4}
                 readOnly
-                size={isMobile ? 'small' : 'medium'}
-                sx={{ color: theme.palette.custom.highlight }}
               />
-              <Typography variant="body2" sx={{ color: theme.palette.custom.highlight }}>
-                ({product.seller?.rating || 4.2})
-              </Typography>
-              {product.seller && (
-                <Chip
-                  icon={<VerifiedIcon sx={{ color: theme.palette.custom.highlight }} />}
-                  label="Verified"
-                  size="small"
-                  sx={{
-                    backgroundColor: theme.palette.tints.tint1,
-                    color: theme.palette.custom.highlight,
-                    fontWeight: 600,
-                    borderRadius: 1,
-                  }}
-                />
-              )}
+              <Typography>({product.seller?.rating || 4})</Typography>
             </Stack>
 
-            <Divider sx={{ my: 2 }} />
-
-            <Stack direction="row" spacing={1} flexWrap="wrap">
-              <FeatureBadge
-                icon={<LocalShippingIcon fontSize="small" />}
-                text={`Ships in ${product.shipping_Time || '3-5 days'}`}
-              />
-              <FeatureBadge
-                icon={<InventoryIcon fontSize="small" />}
-                text="Easy Returns"
-              />
-              <FeatureBadge
-                icon={<LocationOnIcon fontSize="small" />}
-                text={product.seller?.location || 'India'}
-              />
+            {/* Features */}
+            <Stack direction="row" spacing={1}>
+              <FeatureBadge icon={<LocalShippingIcon />} text={`Ships in ${product.shipping_Time}`} />
+              <FeatureBadge icon={<InventoryIcon />} text="Easy Returns" />
             </Stack>
 
-            {/* Buttons for cart and wishlist (50% width each) */}
+            {/* Action Buttons */}
             <Stack direction="row" spacing={2}>
-              <Box sx={{ flex: 1 }}>
-                <ActionButton
-                  buttonType="highlight"
-                  size="medium"
-                  startIcon={inCart ? <ShoppingCartIcon /> : <ShoppingCartOutlinedIcon />}
-                  onClick={handleCartClick}
-                  sx={{ width: '100%' }}
-                >
-                  {cartButtonText}
-                </ActionButton>
-              </Box>
-              <Box sx={{ flex: 1 }}>
-                <ActionButton
-                  buttonType="outline"
-                  size="medium"
-                  startIcon={inWishlist ? <FavoriteIcon /> : <FavoriteBorderIcon />}
-                  onClick={handleWishlistClick}
-                  sx={{ width: '100%' }}
-                >
-                  {wishlistButtonText}
-                </ActionButton>
-              </Box>
+              <ActionButton
+                buttonType="highlight"
+                startIcon={inCart ? <ShoppingCartIcon /> : <ShoppingCartOutlinedIcon />}
+                onClick={handleCartClick}
+                fullWidth
+              >
+                {cartButtonText}
+              </ActionButton>
+              <ActionButton
+                buttonType="outline"
+                startIcon={inWishlist ? <FavoriteIcon /> : <FavoriteBorderIcon />}
+                onClick={handleWishlistClick}
+                fullWidth
+              >
+                {wishlistButtonText}
+              </ActionButton>
             </Stack>
 
-            <Paper
-              variant="outlined"
-              sx={{
-                p: 2,
-                borderRadius: 1,
-                border: `1px dashed ${theme.palette.custom.highlight}40`,
-                backgroundColor: theme.palette.tints.tint1,
-              }}
-            >
-              <Stack direction={isMobile ? "column" : "row"} spacing={2}>
-                <Box sx={{ flex: 1 }}>
-                  <Stack spacing={1}>
-                    <Typography variant="subtitle2" fontWeight="bold" sx={{ color: theme.palette.custom.highlight }}>
-                      DELIVERY OPTIONS
-                    </Typography>
-                    <Stack direction="row" alignItems="center" spacing={1}>
-                      <LocalShippingIcon sx={{ color: theme.palette.custom.highlight }} fontSize="small" />
-                      <Typography variant="body2">
-                        {product.shipping_Time || product.shipping_time || '3-5 days'}
-                      </Typography>
-                    </Stack>
-                  </Stack>
-                </Box>
-                <Box sx={{ flex: 1 }}>
-                  <Stack spacing={1}>
-                    <Typography variant="subtitle2" fontWeight="bold" sx={{ color: theme.palette.custom.highlight }}>
-                      PROCESSING TIME
-                    </Typography>
-                    <Stack direction="row" alignItems="center" spacing={1}>
-                      <AccessTimeIcon sx={{ color: theme.palette.custom.highlight }} fontSize="small" />
-                      <Typography variant="body2">
-                        {product.processing_Time || product.processing_time || '1-2 days'}
-                      </Typography>
-                    </Stack>
-                  </Stack>
-                </Box>
-              </Stack>
-            </Paper>
+            {/* Info Tabs */}
+            <InfoTabs value={tabValue} onChange={handleTabChange} tabs={[
+              { label: 'Description', content: <Typography>{product.description}</Typography> },
+              { label: 'Shipping', content: <Typography>Ships in {product.shipping_Time}</Typography> },
+              { label: 'Reviews', content: <Typography>No reviews yet</Typography> }
+            ]} />
 
-            <InfoTabs tabs={tabContent} />
-
+            {/* Share */}
             <Box>
               <Divider sx={{ my: 2 }} />
-              <Stack direction="row" justifyContent="flex-end" spacing={1}>
-                <Typography variant="body2" sx={{ alignSelf: 'center', color: theme.palette.custom.highlight }}>
-                  Share:
-                </Typography>
-                <IconButton size="small" sx={{ color: theme.palette.custom.highlight }}>
-                  <ShareIcon fontSize="small" />
-                </IconButton>
+              <Stack direction="row" justifyContent="flex-end">
+                <IconButton><ShareIcon /></IconButton>
               </Stack>
             </Box>
           </Stack>

@@ -1,7 +1,5 @@
-// orderService.js
-import axios from './api'; // or import axios directly
+import axios from './api';
 
-// Since your backend is now listening at /orders:
 const API_URL = 'http://localhost:3000/api/orders';
 
 const orderService = {
