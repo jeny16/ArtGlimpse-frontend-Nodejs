@@ -14,7 +14,7 @@ import {
 import ShoppingCartOutlinedIcon from "@mui/icons-material/ShoppingCartOutlined";
 import { useDispatch, useSelector } from "react-redux";
 import { createOrder } from "../store/orderSlice";
-import { clearCartServer, fetchCart } from "../store/cartSlice";
+import { clearCartOnServer, fetchCart } from "../store/cartSlice";
 import { fetchProducts } from "../store/productSlice";
 import { fetchProfile } from "../store/profileSlice";
 import { useNavigate } from "react-router-dom";
@@ -26,10 +26,12 @@ const computeCartTotal = (cart, products = []) => {
   let totalDiscount = 0;
   let shippingCost = 0;
   if (!cart || !cart.items) return 0;
-
+  // console.log("Cart And Products", cart, products);
   cart.items.forEach((item) => {
     const product =
-      products.find((prod) => prod._id === item.productId) ||
+      products.find(
+        (prod) => prod._id === (item.productId._id ?? item.productId)
+      ) ||
       item.productData ||
       {};
 
@@ -49,7 +51,7 @@ const computeCartTotal = (cart, products = []) => {
   let couponDiscount = 0;
   if (cart.couponCode === "NEWUSER") couponDiscount = totalMRP * 0.1;
   const donation = Number(cart.donationAmount) || 0;
-
+  // console.log("price::", totalMRP - totalDiscount - couponDiscount + shippingCost + donation);
   return totalMRP - totalDiscount - couponDiscount + shippingCost + donation;
 };
 
@@ -97,7 +99,7 @@ const CartPage = () => {
       key: conf.razorpayKey,
       amount: amountInPaise,
       currency: "INR",
-      name: "Your Shop Name",
+      name: "Jeny Seller",
       description: "Order Payment",
       handler: async function (response) {
         const razorpayPaymentId = response.razorpay_payment_id;
@@ -120,7 +122,7 @@ const CartPage = () => {
 
         try {
           await dispatch(createOrder(orderData)).unwrap();
-          await dispatch(clearCartServer(userId)).unwrap();
+          await dispatch(clearCartOnServer(userId)).unwrap();
           navigate("/order-confirmation");
         } catch (err) {
           toast.error(

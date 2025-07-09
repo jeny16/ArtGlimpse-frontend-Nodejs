@@ -107,6 +107,18 @@ export const mergeGuestCart = createAsyncThunk(
   }
 );
 
+export const clearCartOnServer = createAsyncThunk(
+  "cart/clearServer",
+  async (userId, thunkAPI) => {
+    try {
+      await cartService.clearCart(userId);
+      return { items: [], couponCode: null, donationAmount: 0 };
+    } catch (err) {
+      return thunkAPI.rejectWithValue(err.response?.data || err.message);
+    }
+  }
+);
+
 const cartSlice = createSlice({
   name: "cart",
   initialState,
@@ -137,7 +149,14 @@ const cartSlice = createSlice({
       .addCase(mergeGuestCart.fulfilled, (state, { payload }) => {
         state.cart = payload;
         state.isGuest = false;
-      });
+      })
+    .addCase(clearCartOnServer.fulfilled, (state, { payload }) => {
+      state.cart = payload;
+      state.isGuest = false;
+    })
+    .addCase(clearCartOnServer.rejected, (state, { payload }) => {
+      state.error = payload || "Failed to clear cart on server";
+    });
   }
 });
 

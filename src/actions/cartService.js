@@ -28,10 +28,18 @@ export const deleteItemFromCart = async (userId, productId) => {
   return res.data;
 };
 
+export const clearCart = async (userId) => {
+  if(!userId){
+    console.log("userId is not Found")
+  }
+  const res = await API.delete(`/${userId}`)  // or `/clear/${userId}` depending on your backend
+  return res.data
+}
 
 export default {
   getCartByUserId,
   addItemToCart,
   updateItemQuantity,
-  deleteItemFromCart
+  deleteItemFromCart,
+  clearCart
 };
