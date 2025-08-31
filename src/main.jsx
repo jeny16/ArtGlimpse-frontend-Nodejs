@@ -21,6 +21,7 @@ import ProfilePage from './Pages/ProfilePage.jsx';
 import OrderConfirmation from './Pages/OrderConfirmation.jsx';
 import OrderDetailsPage from './Pages/OrderDetailsPage.jsx';
 import { Addresses, AuthLayout, Coupons, DeleteAccount, Privacy, ProfileDetails, SavedCards, SavedUpi, Terms, OrderHistory } from './Components/index.js';
+import OrderFailed from "./Pages/OrderFailed.jsx";
 
 const router = createBrowserRouter([
   {
@@ -83,7 +84,8 @@ const router = createBrowserRouter([
           // </AuthLayout>
         ),
       },
-      { path: "/order-confirmation", element: <OrderConfirmation /> },
+      { path: "/order-confirmation/:orderId", element: <OrderConfirmation /> },
+      { path: "/order-failed/:orderId", element: <OrderFailed /> },
       { path: "/orders/:orderId", element: <OrderDetailsPage /> }
     ],
   },

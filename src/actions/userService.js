@@ -1,5 +1,5 @@
 import axios from './api'; // Axios instance with baseURL, if configured
-const API_URL = 'http://localhost:3000/api/user';
+const API_URL = `${import.meta.env.VITE_API_URL}/user`;
 
 const userService = {
   // Fetch the user (and their buyer profile fields):

@@ -36,9 +36,8 @@
     //   console.warn("❌ No matching product in Redux");
     // }
 
-    const productDetail = item.productData || matchedProduct || {};
+    const productDetail = item.productId;
     // console.log("📌 Final productDetail used:", productDetail);
-    console.groupEnd();
 
     const productId = prodId || productDetail._id || 'unknown-id';
     const name = item.name || productDetail.name || '';

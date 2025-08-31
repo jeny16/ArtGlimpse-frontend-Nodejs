@@ -1,7 +1,7 @@
 // src/redux/services/cartService.js
 import axios from 'axios';
 
-const API = axios.create({ baseURL: 'http://localhost:3000/api/cart' });
+const API = axios.create({ baseURL: `${import.meta.env.VITE_API_URL}/cart` });
 
 export const getCartByUserId = async (userId) => {
   const res = await API.get(`/${userId}`);

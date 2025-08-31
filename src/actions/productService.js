@@ -2,7 +2,7 @@
 
 import axios from "axios";
 
-const API_URL = "http://localhost:3000/api/products";
+const API_URL = `${import.meta.env.VITE_API_URL}/products`;
 
 const productService = {
   // Fetch all products with optional query parameters

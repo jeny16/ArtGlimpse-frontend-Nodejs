@@ -37,24 +37,20 @@ const CartReview = () => {
           </Box>
 
           {/* Cart items */}
-          {cart.items.map((item, idx) => {
-            // stable key
-            const productId = typeof item.productId === 'object'
-              ? item.productId._id
-              : item.productId;
+          {cart.items.map((item) => {
+  const product = typeof item.productId === 'object'
+    ? item.productId
+    : products.find(p => p._id === item.productId);
 
-            const key = `${productId}-${item.size || 'def'}-${idx}`;
+  return product ? (
+   <CartItem
+  key={item._id || (typeof item.productId === 'object' ? item.productId._id : item.productId)}
+  item={{ ...item, product }}
+/>
 
-            // ensure productData exists
-            const fallback = products.find(p =>
-              p._id?.toString() === productId?.toString()
-            );
-            const merged = { ...item, productData: item.productData || fallback };
+  ) : null;
+})}
 
-            return merged.productData
-              ? <CartItem key={key} item={merged} />
-              : null;
-          })}
         </Box>
       </Paper>
     </Box>

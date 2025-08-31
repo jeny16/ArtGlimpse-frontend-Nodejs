@@ -1,5 +1,5 @@
 import axios from './api';
-const API_URL = "http://localhost:3000/api/wishlist";
+const API_URL = `${import.meta.env.VITE_API_URL}/wishlist`;
 
 const wishlistService = {
   getWishlist: async (userId) => {

@@ -250,7 +250,7 @@ const ProductCard = ({ product }) => {
                 // Using getImageUrl on the first image in the images array
                 images && images.length > 0
                   ? getImageUrl(images[currentImage])
-                  : "/api/placeholder/150"
+                  : `${import.meta.env.VITE_API_URL}/placeholder/150`
               }
               alt={product.name}
               sx={{

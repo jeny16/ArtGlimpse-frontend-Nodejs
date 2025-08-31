@@ -162,7 +162,7 @@ const OrderHistory = () => {
                   const productData = item.productId || {};
                   const images = productData.images || [];
                   // ← wrap fallback in getImageUrl
-                  const productImage = getImageUrl(images[0] || '/api/placeholder/120/160');
+                  const productImage = getImageUrl(images[0] || `${import.meta.env.VITE_API_URL}/placeholder/120/160`);
                   const productName = productData.name || 'Product Name';
                   const price = item.price || productData.price || 0;
 

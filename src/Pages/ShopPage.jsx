@@ -51,48 +51,45 @@ const ShopPage = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [inStockOnly, setInStockOnly] = useState(false);
   const [discountFilters, setDiscountFilters] = useState([]);
-  const [selectedCountries, setSelectedCountries] = useState([]);
   const [sortBy, setSortBy] = useState("createdAt:desc");
   const [page, setPage] = useState(1);
   const [viewMode, setViewMode] = useState("grid"); // grid or list view
 
-  // Build a plain-object of current filters/sort/page
-  const filters = useMemo(
-    () => ({
-      categories: selectedCategories.join(","),
-      minPrice: priceRange[0],
-      maxPrice: priceRange[1],
-      inStockOnly,
-      discount: discountFilters.join(","),
-      countries: selectedCountries.join(","),
-      search: searchQuery,
-      sortBy,
-      page,
-      limit: ITEMS_PER_PAGE,
-    }),
-    [
-      selectedCategories,
-      priceRange,
-      inStockOnly,
-      discountFilters,
-      selectedCountries,
-      searchQuery,
-      sortBy,
-      page,
-    ]
-  );
+  // Build a plain-object of current filters/sort/page (remove category and discount filter for backend)
+  const filters = useMemo(() => {
+    const f = { sortBy, limit: ITEMS_PER_PAGE, page };
+    if (priceRange[0] > 0) f.minPrice = priceRange[0];
+    if (priceRange[1] < 10000) f.maxPrice = priceRange[1];
+    if (inStockOnly) f.inStockOnly = true;
+    if (searchQuery) f.search = searchQuery;
+    return f;
+  }, [priceRange, inStockOnly, searchQuery, sortBy, page]);
+
+  // Filter products by selectedCategories and discount on the frontend
+  const filteredProducts = useMemo(() => {
+    let result = products;
+    if (selectedCategories.length) {
+      result = result.filter(p => selectedCategories.includes(p.category?.name));
+    }
+    if (discountFilters.length) {
+      result = result.filter(p => {
+        // Assume product.percentage_Discount is the discount percent
+        return discountFilters.some(d => (p.percentage_Discount || 0) >= d);
+      });
+    }
+    return result;
+  }, [products, selectedCategories, discountFilters]);
+
 
   // Calculate active filter count for badge
   const activeFilterCount = useMemo(() => {
     let count = 0;
     if (selectedCategories.length) count++;
     if (priceRange[0] > 0 || priceRange[1] < 10000) count++;
-    if (searchQuery) count++;
     if (inStockOnly) count++;
     if (discountFilters.length) count++;
-    if (selectedCountries.length) count++;
     return count;
-  }, [selectedCategories, priceRange, searchQuery, inStockOnly, discountFilters, selectedCountries]);
+  }, [selectedCategories, priceRange, searchQuery, inStockOnly, discountFilters]);
 
   // Debounced fetch
   const debouncedFetch = useCallback(
@@ -103,48 +100,48 @@ const ShopPage = () => {
   // Trigger fetch on any filters/sort/page change
   useEffect(() => {
     debouncedFetch(filters);
+    console.log('Incoming Filters:', filters);
     return () => debouncedFetch.cancel();
   }, [filters, debouncedFetch]);
 
-  // Handlers just update UI state
-  const handleCategoryChange = (cat, checked) =>
-    setSelectedCategories((prev) =>
-      checked ? [...prev, cat] : prev.filter((c) => c !== cat)
-    );
   const handlePriceRangeChange = (range) => setPriceRange(range);
   const handleSearchChange = (v) => setSearchQuery(v);
   const handleInStockChange = (v) => setInStockOnly(v);
-  const handleDiscountChange = (val, checked) =>
-    setDiscountFilters((prev) =>
-      checked ? [...prev, val] : prev.filter((d) => d !== val)
-    );
-  const handleCountryChange = (c, checked) =>
-    setSelectedCountries((prev) =>
-      checked ? [...prev, c] : prev.filter((x) => x !== c)
-    );
-  const clearAll = () => {
-    setSelectedCategories([]);
-    setPriceRange([0, 10000]);
-    setSearchQuery("");
-    setInStockOnly(false);
-    setDiscountFilters([]);
-    setSelectedCountries([]);
-    setPage(1);
-  };
+
   const handleSortChange = (e) => {
-    setSortBy(e.target.value);
     setPage(1);
   };
   const handlePageChange = (_, v) => setPage(v);
   const toggleFilterPane = () => setShowFilters((s) => !s);
   const toggleViewMode = () => setViewMode(prev => prev === "grid" ? "list" : "grid");
 
+  const handleCategoryChange = (category, checked) => {
+  setSelectedCategories(prev =>
+    checked ? [...prev, category] : prev.filter(c => c !== category)
+  );
+};
+
+const handleDiscountChange = (discount, checked) => {
+  setDiscountFilters(prev =>
+    checked ? [...prev, discount] : prev.filter(d => d !== discount)
+  );
+};
+
+
+console.log('Sort:', sortBy);
+const handleClearAll = () => {
+  setSearchQuery('');
+  setSelectedCategories([]);
+  setPriceRange([0, 10000]);
+  setInStockOnly(false);
+  setDiscountFilters([]);
+};
+
   // Active filter chips
   // const renderActiveFilters = () => {
   //   if (!activeFilterCount) return null;
     
   //   return (
-  //     <Paper
   //       variant="outlined"
   //       sx={{
   //         p: 1.5,
@@ -252,20 +249,19 @@ const ShopPage = () => {
       </Box>
       <Divider sx={{ mb: 2 }} />
       <FilterSidebar
-        selectedCategories={selectedCategories}
-        onCategoryChange={handleCategoryChange}
-        priceRange={priceRange}
-        onPriceRangeChange={handlePriceRangeChange}
-        searchQuery={searchQuery}
-        onSearchQueryChange={handleSearchChange}
-        inStockOnly={inStockOnly}
-        onInStockOnlyChange={handleInStockChange}
-        discountFilters={discountFilters}
-        onDiscountChange={handleDiscountChange}
-        selectedCountries={selectedCountries}
-        onCountryChange={handleCountryChange}
-        onClearAllFilters={clearAll}
-      />
+  searchQuery={searchQuery}
+  onSearchQueryChange={setSearchQuery}
+  selectedCategories={selectedCategories}
+  onCategoryChange={handleCategoryChange}
+  priceRange={priceRange}
+  onPriceRangeChange={setPriceRange}
+  inStockOnly={inStockOnly}
+  onInStockOnlyChange={setInStockOnly}
+  discountFilters={discountFilters}
+  onDiscountChange={handleDiscountChange}
+  onClearAllFilters={handleClearAll}
+/>
+
     </Paper>
   );
 
@@ -411,7 +407,7 @@ const ShopPage = () => {
             ) : (
               <>
                 <ProductGrid 
-                  products={products} 
+                  products={filteredProducts} 
                   columns={getGridColumns()}
                   viewMode={viewMode}
                 />
