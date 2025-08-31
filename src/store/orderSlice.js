@@ -40,7 +40,7 @@ const orderSlice = createSlice({
     orders: [],
     status: "idle", // 'idle' | 'loading' | 'succeeded' | 'failed'
     error: null,
-  },a
+  },
   reducers: {},
   extraReducers: (builder) => {
     builder
