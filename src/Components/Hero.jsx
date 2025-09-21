@@ -24,7 +24,7 @@ const Hero = () => {
                 justifyContent: "center",
                 overflow: "hidden",
                 mt: 12,
-                backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.3)), url("public/assets/hero.jpeg")`,
+                backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.3)), url("/assets/hero.jpeg")`,
                 backgroundSize: "cover",
                 backgroundPosition: "center",
                 color: "#fff",
